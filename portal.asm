@@ -384,21 +384,6 @@ printBackground:
 		
 		mov cx, 15;
 		
-	; printAllStars:
-		; push 0xCCCC	
-		; push 5			        ; random radius form 0 to 4
-		; call randGen
-		; push 0xCCCC		
-		; push 60			        ; random starting row from 0 to 59
-		; call randGen
-		; push 0xCCCC
-		; push 310		        ; random starting col from 0 to 309
-		; call randGen
-		; call printStar
-
-		; dec cx;
-		; jnz printAllStars;
-		
 	mov si, 0;
 	printAllStars:
 		push word [starSize + si]	; radius
