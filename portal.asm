@@ -7,7 +7,9 @@ jmp start
 rows: dw 200
 cols: dw 320
 astSize: dw 10
-
+starLocX: dw 10, 25, 50, 230, 83, 78, 124, 140, 150, 200, 5, 260, 300, 315, 230
+starLocY: dw 10, 30, 20, 50, 5, 25, 28, 49, 12, 39, 52, 32, 30, 12, 22, 27
+starSize: dw 4, 3, 2, 4, 1, 4, 3, 1, 2, 3, 1, 4 ,2, 2, 1
 
 ;--------------------------------------------------------------------
 ; Example on printing through interrupts
@@ -382,20 +384,18 @@ printBackground:
 		
 		mov cx, 15;
 		
+	mov si, 0;
 	printAllStars:
-		push 0xCCCC	
-		push 5			        ; random radius form 0 to 4
-		call randGen
-		push 0xCCCC		
-		push 60			        ; random starting row from 0 to 59
-		call randGen
-		push 0xCCCC
-		push 310		        ; random starting col from 0 to 309
-		call randGen
+		push word [starSize + si]	; radius
+		push word [starLocY + si]	; Rows/X Pos
+		push word [starLocX + si]	; Cols/Y Pos
 		call printStar
 
-		dec cx;
-		jnz printAllStars;
+		add si, 2
+		cmp si, 30
+		jnz printAllStars;	
+		
+
 
 	printAllAsteroids:
 		push 30
@@ -484,7 +484,7 @@ ClearScreen:
     mov dx, 0;		                    ; starting row
     
     mov ah, 0x0C;
-    mov al, 24		                    ; color
+    mov al, 26		                    ; color
 
     mov cx, 0
     mov dx, 66                          ; only printing 2nd section
@@ -499,10 +499,6 @@ ClearScreen:
             jnz clear_rows;
     
         add dx, 1;
-
-		cmp dx, 74
-		je change_ceiling_color
-
         cmp dx, 135                     ; limited to 2nd section only             
         jnz clear_columns;
 	
@@ -511,10 +507,6 @@ ClearScreen:
     pop ax
 	
 	ret
-
-	change_ceiling_color:
-		mov al, 27
-		jmp clear_columns
 
 PrintConveyorBelt:
     push bp
@@ -549,16 +541,16 @@ PrintConveyorBelt:
 		jnz conveyor_columns;
 
 	conveyor_strip:
-		mov cx, word [bp + 14];		    ; starting col
-		mov dx, [bp + 12];		        ; starting row
+		mov cx, word [bp + 14];		        ; starting col
+		mov dx, [bp + 12];		            ; starting row
 		add dx, 3
 		
 		mov ah, 0x0C;
-		mov al, 24					    ; color
-		mov bx, [cols]                	; height
+		mov al, 24					        ; color
+		mov bx, [cols]                   	; height
 
 		strip_columns:
-			mov cx, 0		            ; width
+			mov cx, 0		                ; width
 
 			strip_rows:
 				int 10h;
@@ -572,7 +564,7 @@ PrintConveyorBelt:
 
     xor bx, bx
 		mov ah, 0x0C;
-		mov al, 0x12				    ; color
+		mov al, 0x12				        ; color
 
     BeltSupports:                       ; dx is already on the next row here
         
@@ -601,6 +593,10 @@ PrintConveyorBelt:
     pop bx
     pop ax 
     pop bp 
+
+	;interrupt for key press ;; is this needed here???
+	mov ah, 00h;
+	int 16h;
 	
 	ret 12
 
@@ -650,21 +646,21 @@ PrintBox:
 box_stars:
 	mov cx, 5
 
-	mov dx, 0D03h  					; Row=12 (in DH), Column=20 (in DL)
-	mov bh, 0      					; Page=0
-	mov ah, 02h    					; BIOS.SetCursorPosition - Point to the location of dx and page no. of bh
+	mov dx, 0D03h  ; Row=12 (in DH), Column=20 (in DL)
+	mov bh, 0      ; Page=0
+	mov ah, 02h    ; BIOS.SetCursorPosition - Point to the location of dx and page no. of bh
 	int 10h
 
-	mov bx, 000Eh  					; Page=0 (in BH), Color=14 (in BL)             14 is Yellow
-	mov ax, 0E2Ah  					; BIOS.Teletype (in AH), Character=33 (in AL)  33 is ASCII of "!"
+	mov bx, 000Eh  ; Page=0 (in BH), Color=14 (in BL)             14 is Yellow
+	mov ax, 0E2Ah  ; BIOS.Teletype (in AH), Character=33 (in AL)  33 is ASCII of "!"
 
 	loop_decor:
 
-		mov ah, 02h    				; BIOS.SetCursorPosition - Point to the location of dx and page no. of bh
+		mov ah, 02h    ; BIOS.SetCursorPosition - Point to the location of dx and page no. of bh
 		int 10h
 
-		mov ax, 0E2Ah  				; BIOS.Teletype (in AH), Character=33 (in AL)  33 is ASCII of "!"
-		int 10h						; print interrupt
+		mov ax, 0E2Ah  ; BIOS.Teletype (in AH), Character=33 (in AL)  33 is ASCII of "!"
+		int 10h		; print interrupt
 
 		sub cx, 1
 		cmp cx, 2
@@ -691,91 +687,6 @@ set_color:
 	jmp box_columns
 
 
-PrintCeiling:
-	push bp
-	mov bp, sp
-
-    push ax
-    push bx
-    push cx
-    push dx
-
-	mov ax, 0A000h;
-    mov es, ax;
-    mov cx, 36						; starting column
-    mov dx, 66		        		; starting row
-    
-    mov ah, 0x0C;
-    mov al, 237					    ; color
-    mov bl, 38              		; width (picking in half register???)
-    mov bh, 4                       ; no. of hooks
-    
-			
-	ceiling_columns:
-		mov cx, 36
-        mov bh, 4                   ; no. of boxes
-
-        ceiling_rows:
-            int 10h;
-            add cx, 1;
-            dec bl
-            jnz ceiling_rows;
-
-        add cx, 30
-        mov bl, 38           		; width
-        dec bh
-        jnz ceiling_rows
-
-        add dx, 1
-        cmp dx, 72                	; hardcoded for now??? formula can be implemented tho???
-        jnz ceiling_columns
-
-
-	ceiling_hooks:					; I presum that the hook end at Row 80 (for shifting purposes)???
-		mov cx, 4
-
-		mov dx, 0906h  				; Row=12 (in DH), Column=20 (in DL)
-		mov bh, 0     				; Page=0
-		mov ah, 02h    				; BIOS.SetCursorPosition - Point to the location of dx and page no. of bh
-		int 10h
-
-		mov bx, 0006h  				; Page=0 (in BH), Color=14 (in BL)             14 is Yellow
-		mov ax, 0E7Ch  				; BIOS.Teletype (in AH), Character=7C
-
-		loop_hooks:
-
-			mov ah, 02h    			; BIOS.SetCursorPosition - Point to the location of dx and page no. of bh
-			int 10h
-
-			mov ax, 0E7Ch  			; BIOS.Teletype (in AH), Character=7C
-			int 10h					; print interrupt
-
-			sub cx, 1
-			cmp cx, 2
-			je	change_gap
-
-			add dl, 9;
-			cmp cx, 0
-			jnz loop_hooks
-
-	pop dx
-    pop cx
-    pop bx
-    pop ax 
-    pop bp 
-
-	;interrupt for key press ;; is this needed here???
-	mov ah, 00h;
-	int 16h;
-
-	ret
-
-	change_gap:
-		add dx, 8
-		cmp cx, 0
-		jnz loop_hooks
-
-
 PrintMiddle:
 
     call ClearScreen
@@ -795,8 +706,6 @@ PrintMiddle:
 	push 0x0073			            ; starting row.....[bp + 12]
 
     call PrintConveyorBelt
-
-	call PrintCeiling
 
     ret
 
