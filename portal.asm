@@ -600,7 +600,7 @@ PrintConveyorBelt:
     pop ax 
     pop bp 
 	
-	ret 12
+	ret 10
 
 PrintBox:
     push bp
@@ -682,7 +682,7 @@ box_stars:
     pop ax 
     pop bp 
 	
-	ret 12 
+	ret 10 
 
 set_color:
 	mov al, 0x29					; brown color
@@ -802,10 +802,146 @@ PrintMiddle:
 PrintMainScreen:        ; this will only call 3 funcs for now for printing sections
 
 	call printBackground
-
-    call PrintMiddle
-
+	call PrintMiddle
+    
     ret
+
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;                 Animation                 ;
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+shiftScreenRight:
+		push bp
+		mov bp, sp
+		push dx
+		push ax
+		push es
+		push ds
+		push cx
+		sub sp, 2
+		
+		mov dx, [bp + 8]			;number of rows
+		
+		mov ax,0xA000
+		mov es,ax
+		mov ds,ax	
+		
+	
+		mov si,  [bp + 6]			;starting pixels
+		mov di, [bp + 4]
+	
+	loopShiftRight:	
+		
+		mov al, [es:di]
+		mov [bp - 2], al
+		mov cx, 319
+		
+		nextShiftRight:
+			movsb
+			sub si, 2
+			sub di, 2
+			loop nextShiftRight
+			
+		mov al, [bp - 2]
+		mov [es:di], al
+		add si, 319
+		add di, 319
+		add si, 320
+		add di, 320
+		sub dx, 1
+		jnz loopShiftRight
+		
+		add sp,2
+		pop cx
+		pop ds
+		pop es
+		pop ax
+		pop dx
+		pop bp
+		ret 6
+		
+shiftScreenLeft:
+		push bp
+		mov bp, sp
+		push dx
+		push ax
+		push es
+		push ds
+		push cx
+		sub sp, 2
+		
+		mov dx, [bp + 8]			;number of rows
+		mov ax, 0xA000
+		mov es, ax
+		mov ds, ax	
+		
+		mov si, [bp + 6]			;starting pixels
+		mov di, [bp + 4]
+	
+	loopShiftLeft:	
+		
+		mov al, [es:di]
+		mov [bp-2], al
+		mov cx, 319
+		
+		rep movsb
+		mov al, [bp - 2]
+		mov [es:di], al
+		sub si, 319
+		sub di, 319
+		add si, 320	
+		add di, 320
+		sub dx, 1
+		jnz loopShiftLeft
+		
+		
+		add sp,2
+		pop cx
+		pop ds
+		pop es
+		pop ax
+		pop dx
+		pop bp
+		ret 6
+
+PrintAnimation:
+	push cx
+	
+	xor cx, cx
+
+	mov cx, 1						; background Animation
+
+	
+	shiftL:
+		push 66						; number of rows
+		push 1						; starting pixel for si
+		push 0						; starting pixel for di
+		call shiftScreenLeft
+		loop shiftL
+
+	mov cx, 3						; Conveyor Hooks Animation
+	
+	shiftL2:
+		push 14						; number of rows
+		push 21121					; starting pixel for si
+		push 21120					; starting pixel for di
+		call shiftScreenLeft
+		loop shiftL2
+	
+	mov cx, 2						; Conveyor Belt Animation
+	
+	shiftR:
+		push 40						; number of rows
+		push 25918					; starting pixel for si
+		push 25919					; starting pixel for di
+		call shiftScreenRight
+		loop shiftR
+	
+
+	pop cx
+	ret
+
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;               Main Function               ;
@@ -823,6 +959,10 @@ start:
 	int 10h;
 	
 	call PrintMainScreen
+
+	loop99:
+	call PrintAnimation
+	jmp loop99
 	
 ; setting the mode back to text
 	mov ah, 00h;
